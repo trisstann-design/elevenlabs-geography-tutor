@@ -12,19 +12,15 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const response = await fetch(
-      `https://api.elevenlabs.io/v1/convai/conversation/signed_url`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'xi-api-key': ELEVENLABS_API_KEY,
-        },
-        body: JSON.stringify({
-          agent_id: AGENT_ID,
-        }),
-      }
-    );
+    const url = new URL('https://api.elevenlabs.io/v1/convai/conversation/get-signed-url');
+    url.searchParams.append('agent_id', AGENT_ID);
+
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers: {
+        'xi-api-key': ELEVENLABS_API_KEY,
+      },
+    });
 
     if (!response.ok) {
       const error = await response.text();
