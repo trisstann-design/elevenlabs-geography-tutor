@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Room Creation Test</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            background: white;
+            color: #333;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #667eea;
+            margin-top: 0;
+        }
+        input, button {
+            width: 100%;
+            padding: 12px;
+            margin: 10px 0;
+            border-radius: 6px;
+            border: 1px solid #ddd;
+            font-size: 16px;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        button:hover {
+            background: #5568d3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 6px;
+            background: #f5f5f5;
+            white-space: pre-wrap;
+            word-break: break-all;
+        }
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        .info {
+            background: #d1ecf1;
+            border: 1px solid #bee5eb;
+            color: #0c5460;
+            margin-bottom: 20px;
+            padding: 15px;
+            border-radius: 6px;
+        }
+        .link {
+            color: #667eea;
+            text-decoration: underline;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🧪 Room Creation Test</h1>
+        
+        <div class="info">
+            <strong>Instructions:</strong><br>
+            1. Make sure environment variables are set in Vercel<br>
+            2. Enter your name below<br>
+            3. Click "Create Test Room"<br>
+            4. Check the response for room details and agent connection
+        </div>
+
+        <div>
+            <label for="name"><strong>Your Name:</strong></label>
+            <input type="text" id="name" placeholder="Enter your name" value="Test Student">
+        </div>
+
+        <div>
+            <label for="apiUrl"><strong>API URL:</strong></label>
+            <input type="text" id="apiUrl" placeholder="https://your-app.vercel.app/api/room/create" 
+                   value="https://elevenlabs-geography-tutor.vercel.app/api/room/create">
+        </div>
+
+        <button onclick="createRoom()" id="createBtn">Create Test Room</button>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        async function createRoom() {
+            const name = document.getElementById('name').value.trim();
+            const apiUrl = document.getElementById('apiUrl').value.trim();
+            const resultDiv = document.getElementById('result');
+            const btn = document.getElementById('createBtn');
+
+            if (!name) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = 'Please enter your name';
+                return;
+            }
+
+            if (!apiUrl) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = 'Please enter API URL';
+                return;
+            }
+
+            btn.disabled = true;
+            btn.textContent = 'Creating room...';
+            resultDiv.className = 'result';
+            resultDiv.textContent = 'Sending request...';
+
+            try {
+                const response = await fetch(apiUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ studentName: name })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    resultDiv.className = 'result success';
+                    resultDiv.innerHTML = `
+<strong>✅ Room Created Successfully!</strong>\n\n
+<strong>Room Details:</strong>
+Room Name: ${data.room.name}
+Room SID: ${data.room.sid}
+Room URL: ${data.room.url}\n
+<strong>Token:</strong>
+${data.token.substring(0, 50)}...\n
+<strong>Agent ID:</strong>
+${data.agentId}\n
+<strong>Next Steps:</strong>
+1. <span class="link" onclick="openSeminar()">Open Seminar Room</span>
+2. Check if agent connects automatically
+3. Test audio input/output\n
+<strong>Full Response:</strong>
+${JSON.stringify(data, null, 2)}
+                    `;
+                } else {
+                    resultDiv.className = 'result error';
+                    resultDiv.innerHTML = `
+<strong>❌ Room Creation Failed</strong>\n\n
+<strong>Error:</strong>
+${data.error || 'Unknown error'}\n
+<strong>Details:</strong>
+${data.details || 'No details available'}\n
+<strong>Full Response:</strong>
+${JSON.stringify(data, null, 2)}
+                    `;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.innerHTML = `
+<strong>❌ Request Failed</strong>\n\n
+<strong>Error:</strong>
+${error.message}\n
+<strong>Possible causes:</strong>
+- Network error
+- CORS issue
+- API endpoint not deployed
+- Environment variables not set
+                `;
+            } finally {
+                btn.disabled = false;
+                btn.textContent = 'Create Test Room';
+            }
+        }
+
+        function openSeminar() {
+            const baseUrl = document.getElementById('apiUrl').value.replace('/api/room/create', '');
+            window.open(baseUrl + '/seminar', '_blank');
+        }
+
+        // Allow Enter key to submit
+        document.getElementById('name').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') createRoom();
+        });
+    </script>
+</body>
+</html>
