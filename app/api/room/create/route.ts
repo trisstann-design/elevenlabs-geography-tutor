@@ -5,6 +5,7 @@ const LIVEKIT_API_KEY = process.env.LIVEKIT_API_KEY!;
 const LIVEKIT_API_SECRET = process.env.LIVEKIT_API_SECRET!;
 const LIVEKIT_URL = process.env.LIVEKIT_URL!;
 const ELEVENLABS_AGENT_ID = process.env.ELEVENLABS_AGENT_ID!;
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY!;
 
 interface CreateRoomRequest {
   studentName?: string;
@@ -35,14 +36,14 @@ export async function POST(request: NextRequest) {
     });
 
     // Generate access token for student
-    const token = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
+    const studentToken = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
       identity: studentName,
       name: studentName,
       ttl: '1h', // Token valid for 1 hour
     });
 
     // Grant permissions
-    token.addGrant({
+    studentToken.addGrant({
       roomJoin: true,
       room: roomName,
       canPublish: true,
@@ -50,11 +51,49 @@ export async function POST(request: NextRequest) {
       canSubscribe: true,
     });
 
-    const accessToken = await token.toJwt();
+    const accessToken = await studentToken.toJwt();
 
     // Dispatch ElevenLabs agent to room
-    // Note: ElevenLabs agent auto-connects via WebRTC when room is created
-    // The agent listens for rooms with matching agentId in metadata
+    try {
+      const agentToken = new AccessToken(LIVEKIT_API_KEY, LIVEKIT_API_SECRET, {
+        identity: `agent-${ELEVENLABS_AGENT_ID}`,
+        name: 'AI Tutor',
+        ttl: '1h',
+      });
+
+      agentToken.addGrant({
+        roomJoin: true,
+        room: roomName,
+        canPublish: true,
+        canPublishData: true,
+        canSubscribe: true,
+      });
+
+      const agentAccessToken = await agentToken.toJwt();
+
+      // Call ElevenLabs API to dispatch agent
+      const dispatchResponse = await fetch('https://api.elevenlabs.io/v1/convai/conversations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'xi-api-key': ELEVENLABS_API_KEY,
+        },
+        body: JSON.stringify({
+          agent_id: ELEVENLABS_AGENT_ID,
+          room_name: roomName,
+          room_url: LIVEKIT_URL,
+          room_token: agentAccessToken,
+        }),
+      });
+
+      if (!dispatchResponse.ok) {
+        console.error('Failed to dispatch agent:', await dispatchResponse.text());
+        // Don't fail room creation if agent dispatch fails
+      }
+    } catch (agentError) {
+      console.error('Error dispatching agent:', agentError);
+      // Continue even if agent dispatch fails
+    }
 
     return NextResponse.json({
       success: true,
